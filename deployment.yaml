@@ -1,0 +1,93 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: examclient
+  namespace: andrey
+  labels:
+    andrey: examclient
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+  selector:
+    andrey: examclient
+
+---
+kind: Ingress
+apiVersion: networking.k8s.io/v1beta1
+metadata:
+  name: examclient
+  namespace: andrey
+  labels:
+    andrey: examclient
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+    traefik.ingress.kubernetes.io/redirect-permanent: "true"
+    # traefik.frontend.rule.type: PathPrefixStrip
+    traefik.ingress.kubernetes.io/hsts-max-age: "31536000"
+    traefik.ingress.kubernetes.io/hsts-include-subdomains: "true"
+    traefik.ingress.kubernetes.io/hsts-preload: "true"
+    traefik.ingress.kubernetes.io/content-security-policy: >-
+      default-src 'self';
+    traefik.ingress.kubernetes.io/referrer-policy: "same-origin"
+    traefik.ingress.kubernetes.io/browser-xss-filter: "true"
+    traefik.ingress.kubernetes.io/content-type-nosniff: "true"
+    traefik.ingress.kubernetes.io/custom-frame-options-value: "sameorigin"
+    traefik.ingress.kubernetes.io/custom-response-headers: "server:"
+    # traefik.ingress.kubernetes.io/rate-limit: |
+    #   extractorfunc: client.ip
+    #   rateset:
+    #     examclient:
+    #       period: 1s
+    #       average: 2
+    #       burst: 10
+    traefik.ingress.kubernetes.io/auth-type: basic
+    traefik.ingress.kubernetes.io/auth-secret: basicauth
+spec:
+  rules:
+    - host: ff1exam.trebler.dev
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: examclient
+              servicePort: http
+
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: examclient
+  namespace: andrey
+  labels:
+    andrey: examclient
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      andrey: examclient
+  template:
+    metadata:
+      namespace: andrey
+      labels:
+        andrey: examclient
+    spec:
+      containers:
+        - name: examclient
+          image: trebler/examclient
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 10Mi
+            limits:
+              cpu: 50m
+              memory: 13Mi
+      nodeSelector:
+        agentpool: nodepool0
